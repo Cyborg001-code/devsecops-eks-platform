@@ -1,0 +1,167 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  ECR_APP_REPO: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/devsecops-app
+  ECR_AI_REPO: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/devsecops-ai-service
+  EKS_CLUSTER: ${{ secrets.EKS_CLUSTER_NAME }}
+
+jobs:
+  # ─── Job 1: Build and Scan App ───────────────────────────────────
+  build-and-scan-app:
+    name: Build and Scan App
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build App Docker image
+        run: |
+          docker build -t $ECR_APP_REPO:${{ github.sha }} \
+            -t $ECR_APP_REPO:latest \
+            ./app
+
+      - name: Install Trivy
+        run: |
+          sudo apt-get install -y wget apt-transport-https gnupg
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo "deb https://aquasecurity.github.io/trivy-repo/deb generic main" | \
+            sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install -y trivy
+
+      - name: Scan App image with Trivy
+        run: |
+          trivy image \
+            --exit-code 0 \
+            --severity HIGH,CRITICAL \
+            --format table \
+            $ECR_APP_REPO:${{ github.sha }}
+
+      - name: Push App image to ECR
+        run: |
+          docker push $ECR_APP_REPO:${{ github.sha }}
+          docker push $ECR_APP_REPO:latest
+
+  # ─── Job 2: Build and Scan AI Service ────────────────────────────
+  build-and-scan-ai:
+    name: Build and Scan AI Service
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build AI Service Docker image
+        run: |
+          docker build -t $ECR_AI_REPO:${{ github.sha }} \
+            -t $ECR_AI_REPO:latest \
+            ./ai-service
+
+      - name: Install Trivy
+        run: |
+          sudo apt-get install -y wget apt-transport-https gnupg
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo "deb https://aquasecurity.github.io/trivy-repo/deb generic main" | \
+            sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install -y trivy
+
+      - name: Scan AI Service image with Trivy
+        run: |
+          trivy image \
+            --exit-code 0 \
+            --severity HIGH,CRITICAL \
+            --format table \
+            $ECR_AI_REPO:${{ github.sha }}
+
+      - name: Push AI Service image to ECR
+        run: |
+          docker push $ECR_AI_REPO:${{ github.sha }}
+          docker push $ECR_AI_REPO:latest
+
+  # ─── Job 3: Deploy to EKS ────────────────────────────────────────
+  deploy:
+    name: Deploy to EKS
+    runs-on: ubuntu-latest
+    needs: [build-and-scan-app, build-and-scan-ai]
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --region ${{ secrets.AWS_REGION }} \
+            --name ${{ secrets.EKS_CLUSTER_NAME }}
+
+      - name: Create namespace if not exists
+        run: |
+          kubectl get namespace devsecops || \
+            kubectl create namespace devsecops
+
+      - name: Deploy App to EKS
+        run: |
+          kubectl apply -f k8s/app-deployment.yaml
+          kubectl apply -f k8s/app-service.yaml
+          kubectl set image deployment/devsecops-app \
+            devsecops-app=$ECR_APP_REPO:${{ github.sha }} \
+            -n devsecops
+
+      - name: Deploy AI Service to EKS
+        run: |
+          kubectl apply -f k8s/ai-service-deployment.yaml
+          kubectl apply -f k8s/ai-service-service.yaml
+          kubectl set image deployment/ai-service \
+            ai-service=$ECR_AI_REPO:${{ github.sha }} \
+            -n devsecops
+
+      - name: Verify deployments
+        run: |
+          kubectl rollout status deployment/devsecops-app \
+            -n devsecops --timeout=120s
+          kubectl rollout status deployment/ai-service \
+            -n devsecops --timeout=120s
+
+      - name: Show running pods
+        run: |
+          kubectl get pods -n devsecops

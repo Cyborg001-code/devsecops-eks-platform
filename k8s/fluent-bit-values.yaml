@@ -32,7 +32,7 @@ config:
     [OUTPUT]
         Name s3
         Match kube.var.log.containers.*
-        bucket devsecops-logs-20b6d686
+        bucket devsecops-logs-14ae8678
         region us-east-1
         store_dir /tmp/fluent-bit-s3
         s3_key_format /logs/%Y/%m/%d/%H/%M/%S

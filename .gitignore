@@ -1,0 +1,22 @@
+# Terraform
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+terraform/.terraform.tfstate.lock.info
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# AI Service venv
+ai-service/venv/
+
+# App venv
+app/venv/
+
+# OS
+.DS_Store

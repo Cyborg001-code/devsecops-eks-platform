@@ -17,8 +17,9 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 
-S3_LOGS_BUCKET = os.getenv("S3_LOGS_BUCKET", "devsecops-logs-14ae8678")
-S3_MODELS_BUCKET = os.getenv("S3_MODELS_BUCKET", "devsecops-models-14ae8678")
+# Read from environment variables — set by Kubernetes ConfigMap
+S3_LOGS_BUCKET = os.getenv("S3_LOGS_BUCKET", "")
+S3_MODELS_BUCKET = os.getenv("S3_MODELS_BUCKET", "")
 S3_LOGS_PREFIX = os.getenv("S3_LOGS_PREFIX", "logs/")
 SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL", "")
 

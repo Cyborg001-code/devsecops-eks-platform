@@ -37,9 +37,15 @@ spec:
                   name: aws-credentials
                   key: AWS_DEFAULT_REGION
             - name: S3_LOGS_BUCKET
-              value: "devsecops-logs-14ae8678"
+              valueFrom:
+                configMapKeyRef:
+                  name: devsecops-config
+                  key: S3_LOGS_BUCKET
             - name: S3_MODELS_BUCKET
-              value: "devsecops-models-14ae8678"
+              valueFrom:
+                configMapKeyRef:
+                  name: devsecops-config
+                  key: S3_MODELS_BUCKET
             - name: S3_LOGS_PREFIX
               value: "logs/"
           resources:

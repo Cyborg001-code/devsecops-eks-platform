@@ -1,77 +1,92 @@
-import joblib
+import os
+import pickle
 import boto3
-import pandas as pd
+import numpy as np
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
 import logging
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("ai-service")
 
-MODEL_LOCAL_PATH = "/tmp/isolation_forest.pkl"
-SCALER_LOCAL_PATH = "/tmp/scaler.pkl"
+MODEL_FILE = "/tmp/isolation_forest.pkl"
+SCALER_FILE = "/tmp/scaler.pkl"
 
-FEATURE_COLUMNS = [
-    "requests_per_window",
-    "error_rate",
-    "count_4xx",
-    "count_5xx",
-    "avg_latency_ms",
-    "std_latency_ms",
-    "unique_ips",
-]
+model_instance = None
+scaler_instance = None
 
 
-def train_model(df: pd.DataFrame, contamination: float = 0.05):
-    """Train Isolation Forest model."""
-    if df.empty:
-        raise ValueError("Not enough data to train. Check S3 logs.")
+def train_model(features_df):
+    """Train IsolationForest model on extracted features."""
+    global model_instance, scaler_instance
 
-    X = df[FEATURE_COLUMNS].fillna(0).values
     scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
+    X = scaler.fit_transform(features_df)
 
     model = IsolationForest(
-        contamination=contamination,
-        random_state=42,
-        n_estimators=100
+        n_estimators=100,
+        contamination=0.1,
+        random_state=42
     )
-    model.fit(X_scaled)
+    model.fit(X)
 
-    joblib.dump(model, MODEL_LOCAL_PATH)
-    joblib.dump(scaler, SCALER_LOCAL_PATH)
+    model_instance = model
+    scaler_instance = scaler
 
-    logger.info(f"Model trained on {len(df)} samples")
-    return model, scaler
+    with open(MODEL_FILE, "wb") as f:
+        pickle.dump(model, f)
+    with open(SCALER_FILE, "wb") as f:
+        pickle.dump(scaler, f)
+
+    logger.info("Model trained and saved locally")
 
 
 def save_model_to_s3(bucket: str):
-    """Upload trained model to S3."""
+    """Upload model and scaler to S3."""
     s3 = boto3.client("s3")
-    s3.upload_file(MODEL_LOCAL_PATH, bucket, "models/isolation_forest.pkl")
-    s3.upload_file(SCALER_LOCAL_PATH, bucket, "models/scaler.pkl")
+    s3.upload_file(MODEL_FILE, bucket, "models/isolation_forest.pkl")
+    s3.upload_file(SCALER_FILE, bucket, "models/scaler.pkl")
     logger.info(f"Model saved to s3://{bucket}/models/")
 
 
 def load_model_from_s3(bucket: str):
-    """Download model from S3 and load it."""
+    """Download model and scaler from S3."""
+    global model_instance, scaler_instance
+
+    if model_instance and scaler_instance:
+        return model_instance, scaler_instance
+
     s3 = boto3.client("s3")
-    s3.download_file(bucket, "models/isolation_forest.pkl", MODEL_LOCAL_PATH)
-    s3.download_file(bucket, "models/scaler.pkl", SCALER_LOCAL_PATH)
-    model = joblib.load(MODEL_LOCAL_PATH)
-    scaler = joblib.load(SCALER_LOCAL_PATH)
+    s3.download_file(bucket, "models/isolation_forest.pkl", MODEL_FILE)
+    s3.download_file(bucket, "models/scaler.pkl", SCALER_FILE)
+
+    with open(MODEL_FILE, "rb") as f:
+        model_instance = pickle.load(f)
+    with open(SCALER_FILE, "rb") as f:
+        scaler_instance = pickle.load(f)
+
     logger.info("Model loaded from S3")
-    return model, scaler
+    return model_instance, scaler_instance
 
 
-def predict_anomaly(model, scaler, features: pd.DataFrame) -> dict:
-    """Run anomaly prediction on feature vector."""
-    X = features[FEATURE_COLUMNS].fillna(0).values
-    X_scaled = scaler.transform(X)
-    prediction = model.predict(X_scaled)
-    score = model.decision_function(X_scaled)
+def predict_anomaly(model, scaler, features_df):
+    """Predict anomaly using trained model."""
+    X = scaler.transform(features_df)
+    raw_score = model.score_samples(X)[0]
+    prediction = model.predict(X)[0]
+
+    # score_samples returns negative values
+    # more negative = more anomalous
+    # threshold: below -0.1 is anomaly
+    ANOMALY_THRESHOLD = -0.1
+
+    is_anomaly = bool(raw_score < ANOMALY_THRESHOLD)
+    anomaly_score = round(float(raw_score), 4)
+
+    features_dict = features_df.to_dict(orient="records")[0]
 
     return {
-        "is_anomaly": bool(prediction[0] == -1),
-        "anomaly_score": float(score[0]),
-        "features": features.to_dict(orient="records")[0]
+        "is_anomaly": is_anomaly,
+        "anomaly_score": anomaly_score,
+        "raw_score": round(float(raw_score), 4),
+        "features": features_dict
     }

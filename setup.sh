@@ -64,10 +64,7 @@ kubectl create configmap devsecops-config \
 # Step 6 - Update deployment image URLs
 echo ""
 echo "🐳 Updating deployment image URLs..."
-sed -i "s|image: .*devsecops-app.*|          image: $ECR_APP_URL:latest|g" \
-  ~/devsecops-eks-platform/k8s/app-deployment.yaml
-sed -i "s|image: .*devsecops-ai-service.*|          image: $ECR_AI_URL:latest|g" \
-  ~/devsecops-eks-platform/k8s/ai-service-deployment.yaml
+
 
 # Step 7 - Start Docker and push images to ECR
 echo ""

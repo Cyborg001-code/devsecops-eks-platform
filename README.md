@@ -1,105 +1,88 @@
-🚀 AI-Driven DevSecOps Platform on AWS EKS
+# 🚀 AI-Driven DevSecOps Platform on AWS EKS
 
-⚡ Production-grade DevSecOps platform featuring
-🤖 AI-powered log anomaly detection
-🔁 Automated CI/CD
-📊 Full observability stack
-☁️ Deployed on AWS EKS
+A production-grade DevSecOps platform featuring AI-powered log anomaly detection, automated CI/CD pipeline with security scanning, and a full observability stack — all deployed on AWS EKS.
 
-📑 Table of Contents
+---
 
-🏗️ Architecture Overview
+## 🏗️ Architecture
 
-🛠️ Tech Stack
+![Architecture](https://raw.githubusercontent.com/Cyborg001-code/devsecops-eks-platform/main/docs/images/Architecture.png)
 
-📁 Project Structure
+---
 
-✨ Features
+## 📸 Screenshots
 
-✅ Prerequisites
+### ⚙️ CI/CD Pipeline — GitHub Actions
+![CI/CD Pipeline](https://raw.githubusercontent.com/Cyborg001-code/devsecops-eks-platform/main/docs/images/CI-CD%20Pipeline.JPG)
 
-⚡ Quick Start
+### 📊 Grafana Dashboard — Live Kubernetes Metrics
+![Grafana Dashboard](https://raw.githubusercontent.com/Cyborg001-code/devsecops-eks-platform/main/docs/images/Grafana%20Dashboard.JPG)
 
-🌐 Services
+### 🔔 Slack Alerts — AI Anomaly Detection
+![Slack Alerts](https://raw.githubusercontent.com/Cyborg001-code/devsecops-eks-platform/main/docs/images/Slack%20alert.JPG)
 
-⚙️ CI/CD Pipeline
+---
 
-🤖 AI Anomaly Detection
+## 📋 Table of Contents
 
-📊 Monitoring & Observability
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Features](#features)
+- [Prerequisites](#prerequisites)
+- [Quick Start](#quick-start)
+- [Services](#services)
+- [CI/CD Pipeline](#cicd-pipeline)
+- [AI Anomaly Detection](#ai-anomaly-detection)
+- [Monitoring and Observability](#monitoring-and-observability)
+- [Slack Alerts](#slack-alerts)
+- [Teardown](#teardown)
 
-🔔 Slack Alerts
+---
 
-💣 Teardown
+## 🛠️ Tech Stack
 
-🏗️ Architecture Overview
-🔁 CI/CD + Cloud Architecture
-┌─────────────────────────────────────────────────────────┐
-│                    GitHub Actions CI/CD                  │
-│         Build → Scan (Trivy) → Push ECR → Deploy EKS   │
-└─────────────────────┬───────────────────────────────────┘
-                       │
-┌─────────────────────▼───────────────────────────────────┐
-│                    AWS EKS Cluster                       │
-│                                                          │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐ │
-│  │ devsecops-  │  │ ai-service  │  │   fluent-bit    │ │
-│  │    app      │  │             │  │   (DaemonSet)   │ │
-│  │ (2 replicas)│  │IsolationFrst│  │                 │ │
-│  └──────┬──────┘  └──────┬──────┘  └────────┬────────┘ │
-│         │                │                   │          │
-│  ┌──────▼──────┐  ┌──────▼──────┐           │          │
-│  │ Prometheus  │  │   Grafana   │           │          │
-│  │             │  │  Dashboard  │           │          │
-│  └─────────────┘  └─────────────┘           │          │
-└─────────────────────────────────────────────┼──────────┘
-                                              │
-┌─────────────────────────────────────────────▼──────────┐
-│                        AWS S3                           │
-│          Logs Bucket          Models Bucket             │
-└─────────────────────────────────────────────────────────┘
-                              │
-┌─────────────────────────────▼──────────────────────────┐
-│                      Slack Alerts                       │
-│   Anomaly | High Error Rate | High Latency | Training   │
-└─────────────────────────────────────────────────────────┘
-🛠️ Tech Stack
-Category	Technology
-☁️ Cloud	AWS (EKS, ECR, S3, VPC, IAM)
-🧱 Infrastructure as Code	Terraform
-☸️ Container Orchestration	Kubernetes (EKS v1.31)
-📦 Package Manager	Helm
-⚡ App Framework	Python FastAPI
-🐳 Containerization	Docker
-🔁 CI/CD	GitHub Actions
-🔐 Security Scanning	Trivy
-📜 Log Aggregation	Fluent Bit
-📊 Metrics	Prometheus
-📈 Dashboards	Grafana
-🤖 ML Model	Scikit-learn IsolationForest
-🔔 Alerting	Slack API
-📁 Project Structure
+| Category | Technology |
+|----------|-----------|
+| Cloud | AWS (EKS, ECR, S3, VPC, IAM) |
+| Infrastructure as Code | Terraform |
+| Container Orchestration | Kubernetes (EKS v1.31) |
+| Package Manager | Helm |
+| App Framework | Python FastAPI |
+| Containerization | Docker |
+| CI/CD | GitHub Actions |
+| Security Scanning | Trivy |
+| Log Aggregation | Fluent Bit |
+| Metrics | Prometheus |
+| Dashboards | Grafana |
+| ML Model | Scikit-learn IsolationForest |
+| Alerting | Slack API |
+
+---
+
+## 📁 Project Structure
+
+```
 devsecops-eks-platform/
-├── app/                        # FastAPI microservice
-│   ├── main.py                 # App with structured JSON logging
+├── app/                          # FastAPI microservice
+│   ├── main.py                   # App with structured JSON logging
 │   ├── requirements.txt
 │   └── Dockerfile
-├── ai-service/                 # AI anomaly detection service
-│   ├── main.py                 # FastAPI with Slack alerts
-│   ├── feature_engineering.py  # S3 log fetcher + feature extractor
-│   ├── model.py                # IsolationForest train/predict
+├── ai-service/                   # AI anomaly detection service
+│   ├── main.py                   # FastAPI with Slack alerts
+│   ├── feature_engineering.py    # S3 log fetcher + feature extractor
+│   ├── model.py                  # IsolationForest train/predict
 │   ├── requirements.txt
 │   └── Dockerfile
-├── terraform/                  # Infrastructure as Code
-│   ├── vpc.tf                  # VPC, subnets, IGW, NAT
-│   ├── eks.tf                  # EKS cluster + node group
-│   ├── ecr.tf                  # ECR repositories
-│   ├── s3.tf                   # S3 buckets (logs + models)
-│   ├── iam.tf                  # IAM roles and policies
+├── terraform/                    # Infrastructure as Code
+│   ├── vpc.tf                    # VPC, subnets, IGW, NAT
+│   ├── eks.tf                    # EKS cluster + node group
+│   ├── ecr.tf                    # ECR repositories
+│   ├── s3.tf                     # S3 buckets (logs + models)
+│   ├── iam.tf                    # IAM roles and policies
 │   ├── variables.tf
 │   ├── outputs.tf
 │   └── versions.tf
-├── k8s/                        # Kubernetes manifests
+├── k8s/                          # Kubernetes manifests
 │   ├── app-deployment.yaml
 │   ├── app-service.yaml
 │   ├── ai-service-deployment.yaml
@@ -107,268 +90,344 @@ devsecops-eks-platform/
 │   ├── fluent-bit-values.yaml
 │   └── grafana-dashboards.yaml
 ├── .github/workflows/
-│   └── ci-cd.yaml              # GitHub Actions pipeline
-├── setup.sh                    # One-command setup script
+│   └── ci-cd.yaml                # GitHub Actions pipeline
+├── docs/images/                  # Project screenshots
+├── setup.sh                      # One-command setup script
 └── README.md
-✨ Features
-🏗️ Infrastructure
+```
 
-✔ VPC with public and private subnets across 2 availability zones
-✔ EKS cluster (v1.31) with auto-scaling node group (t3.small)
-✔ ECR repositories with image scanning and lifecycle policies
-✔ S3 buckets with encryption, versioning, and public access blocking
-✔ IAM roles with least-privilege policies
+---
 
-⚡ Application
+## ✨ Features
 
-✔ FastAPI microservice with structured JSON logging
-✔ Middleware capturing:
+### 🏗️ Infrastructure
+- **VPC** with public and private subnets across 2 availability zones
+- **EKS cluster** (v1.31) with auto-scaling node group (t3.small)
+- **ECR** repositories with image scanning and lifecycle policies
+- **S3** buckets with AES256 encryption, versioning, and public access blocking
+- **IAM** roles with least-privilege policies
+- Entire infrastructure recreatable with single `terraform apply`
 
-HTTP method
+### 🐳 Application
+- FastAPI microservice with structured JSON logging
+- Middleware capturing method, path, status code, latency, client IP
+- Health check endpoint for Kubernetes liveness and readiness probes
+- Error simulation endpoint for anomaly testing
+- 2 replicas with rolling deployment strategy
 
-request path
+### 🤖 AI Anomaly Detection
+- IsolationForest ML model trained on real application logs from S3
+- 7 features extracted per log window: error rate, latency, request count, unique IPs
+- Automatic Slack alerts when anomaly score drops below threshold (-0.1)
+- Model persisted to S3 — survives pod restarts and redeployments
 
-status code
+### 🔒 CI/CD + Security
+- GitHub Actions pipeline triggers on every push to `main`
+- Parallel build jobs for App and AI Service
+- Trivy container security scanning for HIGH and CRITICAL vulnerabilities
+- Automatic rolling deployment to EKS
+- Deployment health verified with rollout status check
+- Full pipeline completes in under 3 minutes
 
-latency
+### 📊 Observability
+- **Fluent Bit** DaemonSet collecting structured logs from all app pods → S3
+- **Prometheus** scraping metrics from entire EKS cluster
+- **Custom Grafana dashboard** showing:
+  - Pod CPU usage (per pod, time series)
+  - Pod memory usage (per pod, time series)
+  - Pod restart count
+  - Running pod count
+  - Node CPU usage gauge
+  - Node memory usage gauge
 
-client IP
+### 🔔 Slack Alerts
+- 🚨 Anomaly detected on EKS (with full feature breakdown)
+- ⚠️ High error rate alert (>20% threshold)
+- 🕐 High latency alert (>500ms threshold)
+- 🧠 AI model training complete notification
+- ❌ No logs found in S3 (Fluent Bit health check)
 
-✔ Health check endpoint for Kubernetes probes
-✔ Error simulation endpoint for anomaly testing
+---
 
-🤖 AI Anomaly Detection
+## ✅ Prerequisites
 
-✔ IsolationForest ML model trained on real S3 logs
-✔ Feature extraction includes:
+| Tool | Version |
+|------|---------|
+| AWS CLI | v2+ |
+| Terraform | v1.0+ |
+| kubectl | v1.31+ |
+| Helm | v3.0+ |
+| Docker | v20+ |
+| eksctl | v0.100+ |
 
-error rate
+---
 
-latency
+## ⚡ Quick Start
 
-request count
-
-unique IPs
-
-✔ Automatic Slack alerts when anomaly detected
-✔ Model stored in S3 for cross-pod availability
-
-⚙️ CI/CD Pipeline
-
-Runs automatically on every push to main branch
-
-✔ Parallel build pipelines
-✔ Trivy container security scanning
-✔ Automatic deployment to EKS
-✔ Rolling updates with verification
-
-📊 Observability
-
-✔ Fluent Bit → ships logs from pods to S3
-✔ Prometheus → collects cluster metrics
-✔ Grafana dashboards visualize:
-
-Pod CPU usage
-
-Pod memory usage
-
-Restart counts
-
-Node resource utilization
-
-🔔 Slack Alerts
-
-The system sends alerts for:
-
-🚨 Anomaly detected on EKS
-⚠️ High error rate (>20%)
-🕐 High latency (>500ms)
-🧠 Model training complete
-❌ No logs found in S3
-
-✅ Prerequisites
-Tool	Version
-AWS CLI	v2+
-Terraform	v1.0+
-kubectl	v1.31+
-Helm	v3.0+
-Docker	v20+
-eksctl	v0.100+
-⚡ Quick Start
-1️⃣ Clone the repository
+### 1. Clone the repository
+```bash
 git clone https://github.com/Cyborg001-code/devsecops-eks-platform.git
 cd devsecops-eks-platform
-2️⃣ Configure AWS credentials
+```
+
+### 2. Configure AWS credentials
+```bash
 aws configure
+# Enter: Access Key ID, Secret Access Key, Region (us-east-1), Output (json)
+```
 
-Enter:
-
-Access Key
-Secret Key
-Region: us-east-1
-Output: json
-3️⃣ Provision infrastructure
+### 3. Provision infrastructure
+```bash
 cd terraform
 terraform init
 terraform apply
-4️⃣ Run setup script
+```
+> ⏱️ Takes approximately 25-30 minutes for EKS cluster to be ready.
+
+### 4. Run the setup script
+```bash
 cd ..
 chmod +x setup.sh
 bash setup.sh
-This script automatically:
+```
 
-✔ Reads Terraform outputs
-✔ Connects kubectl to EKS
-✔ Creates namespaces, secrets, ConfigMaps
-✔ Builds & pushes Docker images to ECR
-✔ Deploys services to Kubernetes
-✔ Installs Fluent Bit
+This single script automatically handles everything:
+- Reads Terraform outputs (dynamic S3 bucket names, ECR URLs)
+- Connects kubectl to EKS cluster
+- Creates namespaces: `devsecops`, `logging`, `monitoring`
+- Creates AWS credentials secrets
+- Creates ConfigMap with S3 bucket names
+- Builds and pushes Docker images to ECR
+- Deploys all services to EKS
+- Installs Fluent Bit for log collection
 
-5️⃣ Add Slack webhook (optional)
+### 5. Add Slack webhook (optional)
+```bash
 kubectl create secret generic slack-secret \
-  --from-literal=SLACK_WEBHOOK_URL=YOUR_WEBHOOK_URL \
+  --from-literal=SLACK_WEBHOOK_URL=YOUR_SLACK_WEBHOOK_URL \
   -n devsecops
-6️⃣ Install monitoring
+kubectl rollout restart deployment/ai-service -n devsecops
+```
+
+### 6. Install monitoring stack
+```bash
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
 
 helm install prometheus prometheus-community/kube-prometheus-stack \
   --namespace monitoring \
-  --set grafana.adminPassword=devops123
+  --set grafana.adminPassword=devops123 \
+  --set grafana.resources.requests.memory=128Mi \
+  --set grafana.resources.limits.memory=256Mi \
+  --set prometheus.prometheusSpec.resources.requests.memory=256Mi \
+  --set prometheus.prometheusSpec.resources.limits.memory=512Mi
 
+# Expose Grafana via LoadBalancer
 kubectl patch svc prometheus-grafana \
   -n monitoring \
   -p '{"spec": {"type": "LoadBalancer"}}'
-🌐 Services
+```
 
-Get service URLs:
-
+### 7. Get service URLs
+```bash
+# App URL
 kubectl get svc devsecops-app-service -n devsecops
+
+# Grafana URL (admin / devops123)
 kubectl get svc prometheus-grafana -n monitoring
-Endpoint	Description
-GET /	App root
-GET /health	Health check
-GET /api/data	Sample data endpoint
-GET /api/error	Error simulation
-GET /health (AI)	AI service health
-POST /train	Train anomaly model
-POST /predict	Run prediction
-⚙️ CI/CD Pipeline
-GitHub Actions Flow
+```
+
+---
+
+## 🌐 Services
+
+| Service | Type | Port | Description |
+|---------|------|------|-------------|
+| devsecops-app | LoadBalancer | 80 | Main FastAPI application |
+| ai-service | ClusterIP | 8001 | AI anomaly detection service |
+| prometheus-grafana | LoadBalancer | 80 | Grafana dashboards |
+
+### App Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | Root endpoint |
+| `/health` | GET | Health check for K8s probes |
+| `/api/data` | GET | Sample data with simulated latency |
+| `/api/error` | GET | Simulates 500 errors for anomaly testing |
+
+### AI Service Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | AI service health check |
+| `/train` | POST | Fetch S3 logs, extract features, train model |
+| `/predict` | POST | Load model, predict anomaly, fire Slack alert |
+
+---
+
+## ⚙️ CI/CD Pipeline
+
+The GitHub Actions pipeline (`ci-cd.yaml`) runs on every push to `main`:
+
+```
 Push to main
      │
-     ├──► Build and Scan App
-     │         ├ Docker build
-     │         ├ Trivy scan
-     │         └ Push to ECR
+     ├──► Build and Scan App           (parallel, ~54s)
+     │         ├── docker build
+     │         ├── trivy image scan
+     │         └── docker push ECR
      │
-     ├──► Build and Scan AI Service
-     │         ├ Docker build
-     │         ├ Trivy scan
-     │         └ Push to ECR
+     ├──► Build and Scan AI Service    (parallel, ~1m 22s)
+     │         ├── docker build
+     │         ├── trivy image scan
+     │         └── docker push ECR
      │
-     └──► Deploy to EKS
-               ├ Update kubeconfig
-               ├ Apply manifests
-               ├ Rolling update
-               └ Verify rollout
-🔐 Required GitHub Secrets
-Secret	Description
-AWS_ACCESS_KEY_ID	AWS access key
-AWS_SECRET_ACCESS_KEY	AWS secret key
-AWS_ACCOUNT_ID	AWS account ID
-AWS_REGION	AWS region
-EKS_CLUSTER_NAME	EKS cluster
-🤖 AI Anomaly Detection
-How it works
+     └──► Deploy to EKS                (after both pass, ~37s)
+               ├── aws eks update-kubeconfig
+               ├── kubectl apply manifests
+               ├── kubectl set image (rolling update)
+               └── kubectl rollout status (verify)
+```
 
-1️⃣ Fluent Bit sends logs → S3
-2️⃣ POST /train
+### Required GitHub Secrets
 
-Fetch last 20 logs
+| Secret | Value |
+|--------|-------|
+| `AWS_ACCESS_KEY_ID` | IAM user access key |
+| `AWS_SECRET_ACCESS_KEY` | IAM user secret key |
+| `AWS_ACCOUNT_ID` | AWS account ID (12 digits) |
+| `AWS_REGION` | `us-east-1` |
+| `EKS_CLUSTER_NAME` | `devsecops-cluster` |
 
-Extract features
+---
 
-Train IsolationForest
+## 🤖 AI Anomaly Detection
 
-3️⃣ POST /predict
+### How It Works
 
-Load model
+```
+Fluent Bit (DaemonSet)
+       │
+       ▼ ships logs every 1 minute
+   S3 Logs Bucket
+       │
+       ▼ POST /train
+feature_engineering.py
+  - fetch last 20 S3 log files
+  - parse nested Fluent Bit JSON
+  - extract 7 features per window
+       │
+       ▼
+IsolationForest model
+  - n_estimators=100
+  - contamination=0.1
+  - saved to S3 models bucket
+       │
+       ▼ POST /predict
+  anomaly_score < -0.1
+       │
+       ▼
+  Slack Alert 🚨
+```
 
-Score latest logs
+### Features Extracted
 
-Detect anomalies
+| Feature | Description |
+|---------|-------------|
+| `requests_per_window` | Total requests in log window |
+| `error_rate` | Ratio of 5xx responses to total |
+| `count_4xx` | Number of client error responses |
+| `count_5xx` | Number of server error responses |
+| `avg_latency_ms` | Mean response time in milliseconds |
+| `std_latency_ms` | Standard deviation of response time |
+| `unique_ips` | Number of distinct client IP addresses |
 
-Features extracted
-Feature	Description
-requests_per_window	Total requests
-error_rate	5xx ratio
-count_4xx	Number of 4xx
-count_5xx	Number of 5xx
-avg_latency_ms	Avg latency
-std_latency_ms	Latency variance
-unique_ips	Unique clients
-🚨 Anomaly Threshold
-Score < -0.1 → Anomaly detected
-📊 Monitoring & Observability
-Access Grafana
+---
+
+## 📊 Monitoring and Observability
+
+### Grafana Access
+```bash
+# Get Grafana URL
 kubectl get svc prometheus-grafana -n monitoring
 
-Open EXTERNAL-IP in browser
+# Open in browser — login with:
+# Username: admin
+# Password: devops123
+```
 
-Login:
+### Available Dashboards
+- **DevSecOps Platform** — Custom dashboard (auto-loaded via ConfigMap)
+  - Pod CPU and memory usage per pod
+  - Pod restart count and running pods
+  - Node CPU and memory gauges
+- **Kubernetes Cluster Overview** — Import dashboard ID `15760`
 
-Username: admin
-Password: devops123
-Import dashboards
+### Prometheus Access
+```bash
+kubectl port-forward svc/prometheus-kube-prometheus-prometheus \
+  9090:9090 -n monitoring
+# Open: http://localhost:9090
+```
 
-Recommended dashboards:
+---
 
-15760 → Kubernetes Cluster Overview
+## 🔔 Slack Alerts
 
-Also includes:
+### Setup
+1. Go to `https://api.slack.com/apps`
+2. Create App → Enable **Incoming Webhooks**
+3. Add webhook to your workspace channel
+4. Add as Kubernetes secret:
 
-DevSecOps Platform Dashboard
-
-(auto-loaded via ConfigMap)
-
-🔔 Slack Alerts
-Setup
-
-1️⃣ Go to
-
-https://api.slack.com/apps
-
-2️⃣ Create App
-3️⃣ Enable Incoming Webhooks
-4️⃣ Add webhook to workspace
-
-Then run:
-
+```bash
 kubectl create secret generic slack-secret \
   --from-literal=SLACK_WEBHOOK_URL=https://hooks.slack.com/services/XXX/XXX/XXX \
   -n devsecops
-💣 Teardown
+```
 
-To avoid AWS charges, destroy resources in this order.
+### Alert Types
 
-1️⃣ Delete LoadBalancer services
+| Alert | Trigger | Icon |
+|-------|---------|------|
+| Anomaly Detected | `anomaly_score < -0.1` | 🚨 |
+| High Error Rate | `error_rate > 20%` | ⚠️ |
+| High Latency | `avg_latency_ms > 500` | 🕐 |
+| Training Complete | After successful `/train` | 🧠 |
+| No Logs in S3 | Empty S3 log prefix | ❌ |
+
+---
+
+## 💣 Teardown
+
+To avoid AWS charges, destroy resources in this order:
+
+```bash
+# Step 1 - Delete LoadBalancer services (prevents subnet dependency errors)
 kubectl delete svc devsecops-app-service -n devsecops
 kubectl delete svc prometheus-grafana -n monitoring
 sleep 60
-2️⃣ Delete ECR repositories
-aws ecr delete-repository --repository-name devsecops-app --region us-east-1 --force
-aws ecr delete-repository --repository-name devsecops-ai-service --region us-east-1 --force
-3️⃣ Destroy infrastructure
+
+# Step 2 - Force delete ECR repositories (removes images first)
+aws ecr delete-repository \
+  --repository-name devsecops-app \
+  --region us-east-1 --force
+aws ecr delete-repository \
+  --repository-name devsecops-ai-service \
+  --region us-east-1 --force
+
+# Step 3 - Destroy all infrastructure
 cd terraform
 terraform destroy
-👤 Author
+```
 
-Ankush
+> ✅ After destroy, all AWS resources are removed and billing stops.
 
-GitHub:
-https://github.com/Cyborg001-code
+---
 
-📄 License
+## 👤 Author
 
-MIT License
+**Ankush** — [GitHub](https://github.com/Cyborg001-code)
+
+---

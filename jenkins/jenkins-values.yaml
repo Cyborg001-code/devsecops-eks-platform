@@ -1,0 +1,46 @@
+controller:
+  image:
+    repository: "jenkins/jenkins"
+    tag: "lts"
+
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+
+  serviceType: LoadBalancer
+
+  installPlugins:
+    - kubernetes:latest
+    - workflow-aggregator:latest
+    - git:latest
+    - docker-workflow:latest
+    - pipeline-stage-view:latest
+    - sonar:latest
+    - dependency-check-jenkins-plugin:latest
+    - aws-credentials:latest
+    - amazon-ecr:latest
+    - slack:latest
+    - configuration-as-code:latest
+    - blueocean:latest
+
+  adminUser: "admin"
+  adminPassword: "devops123"
+
+  javaOpts: "-Xms256m -Xmx512m"
+
+persistence:
+  enabled: true
+  size: "5Gi"
+
+agent:
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"

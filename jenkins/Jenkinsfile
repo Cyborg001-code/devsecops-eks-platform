@@ -1,0 +1,160 @@
+pipeline {
+    agent any
+
+    environment {
+        AWS_REGION        = "us-east-1"
+        AWS_ACCOUNT_ID    = credentials('aws-account-id')
+        ECR_APP_REPO      = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/devsecops-app"
+        ECR_AI_REPO       = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/devsecops-ai-service"
+        SONAR_PROJECT_KEY = "devsecops-eks-platform"
+        GIT_REPO          = "https://github.com/Cyborg001-code/devsecops-eks-platform.git"
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                git branch: 'main',
+                    url: "${GIT_REPO}"
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('sonarqube') {
+                    sh '''
+                        sonar-scanner \
+                          -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                          -Dsonar.projectName="DevSecOps EKS Platform" \
+                          -Dsonar.sources=app,ai-service \
+                          -Dsonar.python.version=3.11
+                    '''
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+
+        stage('OWASP Dependency Check') {
+            steps {
+                dependencyCheck(
+                    additionalArguments: '''
+                        --scan app/
+                        --scan ai-service/
+                        --format HTML
+                        --format XML
+                        --out reports/
+                    ''',
+                    odcInstallation: 'owasp-dependency-check'
+                )
+                dependencyCheckPublisher(
+                    pattern: 'reports/dependency-check-report.xml'
+                )
+            }
+        }
+
+        stage('Build App Image') {
+            steps {
+                sh '''
+                    docker build \
+                      -t ${ECR_APP_REPO}:${BUILD_NUMBER} \
+                      -t ${ECR_APP_REPO}:latest \
+                      ./app
+                '''
+            }
+        }
+
+        stage('Build AI Service Image') {
+            steps {
+                sh '''
+                    docker build \
+                      -t ${ECR_AI_REPO}:${BUILD_NUMBER} \
+                      -t ${ECR_AI_REPO}:latest \
+                      ./ai-service
+                '''
+            }
+        }
+
+        stage('Trivy Scan - App') {
+            steps {
+                sh '''
+                    mkdir -p reports
+                    trivy image \
+                      --severity HIGH,CRITICAL \
+                      --format table \
+                      --output reports/trivy-app.txt \
+                      --exit-code 0 \
+                      ${ECR_APP_REPO}:${BUILD_NUMBER}
+                '''
+            }
+        }
+
+        stage('Trivy Scan - AI Service') {
+            steps {
+                sh '''
+                    trivy image \
+                      --severity HIGH,CRITICAL \
+                      --format table \
+                      --output reports/trivy-ai-service.txt \
+                      --exit-code 0 \
+                      ${ECR_AI_REPO}:${BUILD_NUMBER}
+                '''
+            }
+        }
+
+        stage('Push to ECR') {
+            steps {
+                withAWS(credentials: 'aws-credentials', region: "${AWS_REGION}") {
+                    sh '''
+                        aws ecr get-login-password --region ${AWS_REGION} | \
+                          docker login --username AWS --password-stdin \
+                          ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+
+                        docker push ${ECR_APP_REPO}:${BUILD_NUMBER}
+                        docker push ${ECR_APP_REPO}:latest
+
+                        docker push ${ECR_AI_REPO}:${BUILD_NUMBER}
+                        docker push ${ECR_AI_REPO}:latest
+                    '''
+                }
+            }
+        }
+
+        stage('Update Image Tag in Git') {
+            steps {
+                withCredentials([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
+                    sh '''
+                        git config user.email "ankushaws001@gmail.com"
+                        git config user.name "Cyborg001-code"
+
+                        sed -i "s|image:.*devsecops-app.*|image: ${ECR_APP_REPO}:${BUILD_NUMBER}|g" \
+                          k8s/app-deployment.yaml
+
+                        sed -i "s|image:.*devsecops-ai-service.*|image: ${ECR_AI_REPO}:${BUILD_NUMBER}|g" \
+                          k8s/ai-service-deployment.yaml
+
+                        git add k8s/app-deployment.yaml k8s/ai-service-deployment.yaml
+                        git commit -m "Update image tags to build ${BUILD_NUMBER} [skip ci]"
+                        git push https://${GITHUB_TOKEN}@github.com/Cyborg001-code/devsecops-eks-platform.git main
+                    '''
+                }
+            }
+        }
+
+    }
+
+    post {
+        success {
+            echo '✅ Pipeline completed successfully! ArgoCD will now sync to EKS.'
+        }
+        failure {
+            echo '❌ Pipeline failed. Check the logs above.'
+        }
+    }
+}

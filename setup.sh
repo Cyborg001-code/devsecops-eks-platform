@@ -5,10 +5,19 @@ echo "========================================="
 echo " DevSecOps Platform - Auto Setup Script"
 echo "========================================="
 
-# Step 1 - Get Terraform outputs
+# Step 1 - Terraform init and apply
+echo ""
+echo "🏗️  Provisioning AWS Infrastructure..."
+cd ~/devsecops-eks-platform/terraform
+
+terraform init
+terraform apply -auto-approve
+
+echo "✅ Infrastructure provisioned!"
+
+# Step 2 - Get Terraform outputs
 echo ""
 echo "📦 Reading Terraform outputs..."
-cd ~/devsecops-eks-platform/terraform
 
 export S3_LOGS_BUCKET=$(terraform output -raw s3_logs_bucket)
 export S3_MODELS_BUCKET=$(terraform output -raw s3_models_bucket)
@@ -23,25 +32,25 @@ echo "✅ ECR App:          $ECR_APP_URL"
 echo "✅ ECR AI Service:   $ECR_AI_URL"
 echo "✅ EKS Cluster:      $EKS_CLUSTER"
 
-# Step 2 - Connect kubectl to EKS
+# Step 3 - Connect kubectl to EKS
 echo ""
 echo "🔗 Connecting kubectl to EKS..."
 aws eks update-kubeconfig --region us-east-1 --name $EKS_CLUSTER
 
-# Step 3 - Create namespaces
+# Step 4 - Create namespaces
 echo ""
 echo "📁 Creating namespaces..."
-kubectl get namespace devsecops   2>/dev/null || kubectl create namespace devsecops
-kubectl get namespace logging     2>/dev/null || kubectl create namespace logging
-kubectl get namespace monitoring  2>/dev/null || kubectl create namespace monitoring
-kubectl get namespace argocd      2>/dev/null || kubectl create namespace argocd
-kubectl get namespace jenkins     2>/dev/null || kubectl create namespace jenkins
-kubectl get namespace sonarqube   2>/dev/null || kubectl create namespace sonarqube
+kubectl get namespace devsecops  2>/dev/null || kubectl create namespace devsecops
+kubectl get namespace logging    2>/dev/null || kubectl create namespace logging
+kubectl get namespace monitoring 2>/dev/null || kubectl create namespace monitoring
+kubectl get namespace argocd     2>/dev/null || kubectl create namespace argocd
+kubectl get namespace jenkins    2>/dev/null || kubectl create namespace jenkins
+kubectl get namespace sonarqube  2>/dev/null || kubectl create namespace sonarqube
 
-# Step 4 - Create AWS credentials secrets
+# Step 5 - Create AWS credentials secrets
 echo ""
 echo "🔐 Creating AWS credentials secrets..."
-kubectl delete secret aws-credentials -n devsecops  2>/dev/null || true
+kubectl delete secret aws-credentials -n devsecops 2>/dev/null || true
 kubectl create secret generic aws-credentials \
   --from-literal=AWS_ACCESS_KEY_ID=$(aws configure get aws_access_key_id) \
   --from-literal=AWS_SECRET_ACCESS_KEY=$(aws configure get aws_secret_access_key) \
@@ -62,7 +71,7 @@ kubectl create secret generic aws-credentials \
   --from-literal=AWS_DEFAULT_REGION=us-east-1 \
   -n jenkins
 
-# Step 5 - Create ConfigMap with dynamic S3 bucket names
+# Step 6 - Create ConfigMap with dynamic S3 bucket names
 echo ""
 echo "⚙️  Creating ConfigMap with S3 bucket names..."
 kubectl delete configmap devsecops-config -n devsecops 2>/dev/null || true
@@ -71,7 +80,7 @@ kubectl create configmap devsecops-config \
   --from-literal=S3_MODELS_BUCKET=$S3_MODELS_BUCKET \
   -n devsecops
 
-# Step 6 - Create Slack secret
+# Step 7 - Create Slack secret
 echo ""
 echo "🔔 Creating Slack secret..."
 kubectl delete secret slack-secret -n devsecops 2>/dev/null || true
@@ -79,7 +88,7 @@ kubectl create secret generic slack-secret \
   --from-literal=SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-"YOUR_SLACK_WEBHOOK_URL"} \
   -n devsecops
 
-# Step 7 - Start Docker and authenticate to ECR
+# Step 8 - Start Docker and authenticate to ECR
 echo ""
 echo "🚀 Starting Docker..."
 sudo service docker start
@@ -90,7 +99,7 @@ aws ecr get-login-password --region us-east-1 | \
   docker login --username AWS --password-stdin \
   $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com
 
-# Step 8 - Build and push images to ECR
+# Step 9 - Build and push images to ECR
 echo ""
 echo "🔨 Building and pushing App image..."
 cd ~/devsecops-eks-platform/app
@@ -102,7 +111,7 @@ cd ~/devsecops-eks-platform/ai-service
 docker build -t $ECR_AI_URL:latest .
 docker push $ECR_AI_URL:latest
 
-# Step 9 - Deploy app and AI service to EKS
+# Step 10 - Deploy app and AI service to EKS
 echo ""
 echo "☸️  Deploying apps to EKS..."
 kubectl apply -f ~/devsecops-eks-platform/k8s/app-deployment.yaml
@@ -110,13 +119,13 @@ kubectl apply -f ~/devsecops-eks-platform/k8s/app-service.yaml
 kubectl apply -f ~/devsecops-eks-platform/k8s/ai-service-deployment.yaml
 kubectl apply -f ~/devsecops-eks-platform/k8s/ai-service-service.yaml
 
-# Step 10 - Update Fluent Bit config with correct bucket name
+# Step 11 - Update Fluent Bit config with correct bucket name
 echo ""
 echo "📋 Updating Fluent Bit config with bucket name..."
 sed -i "s|bucket .*|bucket $S3_LOGS_BUCKET|g" \
   ~/devsecops-eks-platform/k8s/fluent-bit-values.yaml
 
-# Step 11 - Install Fluent Bit
+# Step 12 - Install Fluent Bit
 echo ""
 echo "📦 Installing Fluent Bit..."
 helm repo add fluent https://fluent.github.io/helm-charts 2>/dev/null || true
@@ -138,7 +147,7 @@ helm install fluent-bit fluent/fluent-bit \
   --set env[2].valueFrom.secretKeyRef.name=aws-credentials \
   --set env[2].valueFrom.secretKeyRef.key=AWS_DEFAULT_REGION
 
-# Step 12 - Install ArgoCD
+# Step 13 - Install ArgoCD
 echo ""
 echo "🐙 Installing ArgoCD..."
 helm repo add argo https://argoproj.github.io/argo-helm 2>/dev/null || true
@@ -156,12 +165,12 @@ kubectl wait --for=condition=ready pod \
   -l app.kubernetes.io/name=argocd-server \
   -n argocd --timeout=300s
 
-# Step 13 - Apply ArgoCD Application
+# Step 14 - Apply ArgoCD Application
 echo ""
 echo "🔗 Connecting ArgoCD to GitHub repo..."
 kubectl apply -f ~/devsecops-eks-platform/argocd/application.yaml
 
-# Step 14 - Install Jenkins
+# Step 15 - Install Jenkins
 echo ""
 echo "🔧 Installing Jenkins..."
 helm repo add jenkins https://charts.jenkins.io 2>/dev/null || true
@@ -179,7 +188,7 @@ kubectl wait --for=condition=ready pod \
   -l app.kubernetes.io/name=jenkins \
   -n jenkins --timeout=300s
 
-# Step 15 - Install SonarQube
+# Step 16 - Install SonarQube
 echo ""
 echo "📊 Installing SonarQube..."
 helm repo add sonarqube https://SonarSource.github.io/helm-chart-sonarqube 2>/dev/null || true
@@ -197,7 +206,7 @@ kubectl wait --for=condition=ready pod \
   -l app=sonarqube \
   -n sonarqube --timeout=300s
 
-# Step 16 - Install Prometheus + Grafana
+# Step 17 - Install Prometheus + Grafana
 echo ""
 echo "📈 Installing Prometheus + Grafana..."
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts 2>/dev/null || true
@@ -220,7 +229,7 @@ kubectl patch svc prometheus-grafana \
 
 kubectl apply -f ~/devsecops-eks-platform/k8s/grafana-dashboards.yaml
 
-# Step 17 - Show all service URLs
+# Step 18 - Show all service URLs and credentials
 echo ""
 echo "========================================="
 echo " ✅ Setup Complete!"
@@ -255,13 +264,12 @@ echo "========================================="
 echo " 🔑 Login Credentials"
 echo "========================================="
 echo " Jenkins:   admin / devops123"
-echo " ArgoCD:    admin / (run command below)"
 echo " SonarQube: admin / admin"
 echo " Grafana:   admin / devops123"
 echo ""
-echo " ArgoCD password command:"
+echo " ArgoCD password — run this command:"
 echo " kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.data.password}' | base64 -d"
 echo ""
-echo "S3 Logs Bucket:   $S3_LOGS_BUCKET"
-echo "S3 Models Bucket: $S3_MODELS_BUCKET"
+echo " S3 Logs Bucket:   $S3_LOGS_BUCKET"
+echo " S3 Models Bucket: $S3_MODELS_BUCKET"
 echo "========================================="

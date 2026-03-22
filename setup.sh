@@ -11,9 +11,21 @@ echo "🏗️  Provisioning AWS Infrastructure..."
 cd ~/devsecops-eks-platform/terraform
 
 terraform init
-terraform apply -auto-approve
 
-echo "✅ Infrastructure provisioned!"
+# Check if EKS cluster already exists
+CLUSTER_EXISTS=$(aws eks describe-cluster \
+  --name devsecops-cluster \
+  --region us-east-1 \
+  --query 'cluster.status' \
+  --output text 2>/dev/null || echo "NOT_FOUND")
+
+if [ "$CLUSTER_EXISTS" == "ACTIVE" ]; then
+  echo "✅ EKS cluster already exists and is ACTIVE. Skipping terraform apply."
+else
+  echo "🏗️  Creating infrastructure..."
+  terraform apply -auto-approve
+  echo "✅ Infrastructure provisioned!"
+fi
 
 # Step 2 - Get Terraform outputs
 echo ""

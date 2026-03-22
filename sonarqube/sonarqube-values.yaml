@@ -41,6 +41,8 @@ sonarProperties:
 
 jvmOpts: "-Xms256m -Xmx512m"
 
+monitoringPasscode: "devops123"
+
 initSysctl:
   enabled: true
   vmMaxMapCount: 524288

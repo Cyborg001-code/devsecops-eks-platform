@@ -1,8 +1,7 @@
-replicaCount: 1
+community:
+  enabled: true
 
-image:
-  repository: sonarqube
-  tag: community
+replicaCount: 1
 
 service:
   type: LoadBalancer
@@ -20,9 +19,6 @@ persistence:
   enabled: true
   size: 5Gi
 
-jdbcOverwrite:
-  enable: false
-
 postgresql:
   enabled: true
   resources:
@@ -36,12 +32,9 @@ postgresql:
     enabled: true
     size: 5Gi
 
-sonarProperties:
-  sonar.forceAuthentication: "false"
+monitoringPasscode: "devops123"
 
 jvmOpts: "-Xms256m -Xmx512m"
-
-monitoringPasscode: "devops123"
 
 initSysctl:
   enabled: true

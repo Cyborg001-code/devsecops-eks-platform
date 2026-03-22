@@ -27,8 +27,9 @@ controller:
     - configuration-as-code:latest
     - blueocean:latest
 
-  adminUser: "admin"
-  adminPassword: "devops123"
+  admin:
+    username: "admin"
+    password: "devops123"
 
   javaOpts: "-Xms256m -Xmx512m"
 
